@@ -1,0 +1,2 @@
+perror: Success
+stderr:hello fprintf

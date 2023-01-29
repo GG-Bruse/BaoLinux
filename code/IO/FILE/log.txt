@@ -1,0 +1,5 @@
+hello write
+hello printf
+hello fputs
+hello printf
+hello fputs
