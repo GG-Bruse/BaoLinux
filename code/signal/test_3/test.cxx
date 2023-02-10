@@ -17,7 +17,7 @@ int main()
 	int status = 0;
 	waitpid(-1, &status, 0);
     std::cout << "exit_code:" << WEXITSTATUS(status) << std::endl;
-    std::cout << "core_dump:" << WCOREDUMP(status) << std::endl;
+    std::cout << "core_dump:" << ((status >> 7) & 1) << std::endl;
     std::cout << "trem_signal:" << WTERMSIG(status) << std::endl;
 	
 	return 0;
