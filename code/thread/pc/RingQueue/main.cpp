@@ -10,9 +10,9 @@ void* Producer(void* arg)
     {
         //构建数据或任务对象(一般从外部获取)
         int date = rand() % 100 + 1;
-        std::cout << "生产:" << date << "[" << pthread_self() << "]" <<std::endl;
         //Push入环形队列
         rq->Push(date);
+        std::cout << "生产:" << date << "[" << pthread_self() << "]" <<std::endl;
     }
 
 }
