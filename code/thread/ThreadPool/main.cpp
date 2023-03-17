@@ -3,7 +3,7 @@
 
 int main()
 {
-    ThreadPool<Task>* threadPool = new ThreadPool<Task>();
+    ThreadPool<Task>* threadPool = ThreadPool<Task>::GetThreadPool(5);
     threadPool->Run();
     while(true)
     {
