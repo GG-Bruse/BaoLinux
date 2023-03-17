@@ -1,12 +1,10 @@
 #pragma once
-
 #include <iostream>
 #include <string>
 #include <functional>
 #include "Log.hpp"
 
 typedef std::function<int(int, int)> fun_t;
-
 class Task
 {
 public:

@@ -38,7 +38,7 @@ public:
         return pool_ptr;
     }
 
-    static void* routine(void* args) {
+    static void* Routine(void* args) {
         ThreadDate* thread_date = (ThreadDate*)args;
         ThreadPool<T>* thread_pool = (ThreadPool<T>*)thread_date->_args;
         while(true) {
@@ -79,7 +79,7 @@ private:
         pthread_mutex_init(&_mutex, nullptr);
         pthread_cond_init(&_cond, nullptr);
         for (int i = 1; i <= _num; i++) {
-            _threads.push_back(new Thread(i, routine, this));
+            _threads.push_back(new Thread(i, Routine, this));
         }
     }
     ThreadPool(const ThreadPool<T>& others) = delete;
@@ -93,7 +93,7 @@ private:
     pthread_mutex_t _mutex;
     pthread_cond_t _cond;
 private:
-    static ThreadPool<T>* pool_ptr;
+    static ThreadPool<T>* pool_ptr;//避免编译器自动优化
     static pthread_mutex_t _init_mutex;
 };
 

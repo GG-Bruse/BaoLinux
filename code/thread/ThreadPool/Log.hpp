@@ -5,7 +5,7 @@
 #include <cstdarg>
 #include <ctime>
 
-//日志级别的
+//日志级别
 #define DEBUG   0
 #define NORMAL  1
 #define WARNING 2
