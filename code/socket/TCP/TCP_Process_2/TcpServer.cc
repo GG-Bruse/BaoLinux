@@ -30,6 +30,8 @@ void TcpServer::InitServer()
 
 void TcpServer::StartUp()
 {
+    //设置忽略SIGCHLD信号
+    signal(SIGCHLD, SIG_IGN);
     while(true) 
     {
         //获取连接
@@ -45,7 +47,16 @@ void TcpServer::StartUp()
         uint16_t client_port = ntohs(foreign.sin_port);
         cout << "New Link: [" << server_socket_fd << "] [" <<  client_ip << "] [" << client_port << "]" << endl;
         //处理客户端请求
-        Service(server_socket_fd, client_ip, client_port);
+        pid_t id = fork();
+        if(id == 0) { //爸爸进程
+            close(_socket_listen_fd);//关闭监听套接字
+            if(fork() > 0) exit(4);//服务进程子进程直接退出
+            //孙子进程处理
+            Service(server_socket_fd, client_ip,client_port);
+            exit(5);
+        }
+        close(server_socket_fd);//服务进程关闭连接客户端时获取的文件描述符
+        waitpid(id, nullptr, WNOHANG);//等待爸爸进程，立即成功
     }
 }
 
