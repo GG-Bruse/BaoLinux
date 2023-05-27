@@ -12,7 +12,6 @@ using std::function;
 using std::unordered_map;
 using std::make_pair;
 using std::bind;
-using namespace std::placeholders;
 
 class TcpServer;
 class Connection;
@@ -55,7 +54,7 @@ public:
         //创建多路转接对象
         _epoll.EpollCreate();
         //将监听套接字封装为链接并添加至服务器的管理中
-        AddConnection(_listenSocketFd, bind(&TcpServer::Accepter, this, _1), nullptr, nullptr);
+        AddConnection(_listenSocketFd, bind(&TcpServer::Accepter, this, std::placeholders::_1), nullptr, nullptr);
         //为获取就绪事件的缓冲区开辟内存
         _revs = new struct epoll_event[_revsNum];
     }
@@ -74,7 +73,7 @@ public:
         con->SetCallBack(reavCb, sendCb, exceptCb);//监听套接字只需读取回调函数
         con->_svrPtr = this;
         //添加套接字到epoll中
-        _epoll.AddSockToEpoll(socket, EPOLLIN | EPOLLET);//ET模式
+        _epoll.AddSockToEpoll(socket, EPOLLIN | EPOLLET);//一般多路转接服务器默认监视读事件，其他事件按需设置
         //对应的链接添加到映射表中管理
         _connections.insert(make_pair(socket, con));
     }
@@ -108,7 +107,58 @@ public:
 public://各种回调方法
     void Accepter(Connection* con) 
     {
-        LogMessage(DEBUG, "Accepter been called!!!");
+        while(true)
+        {
+            string clientIp;
+            uint16_t clientPort;
+            int acceptErrno = 0;
+            int socket = Socket::Accept(con->_socketFd, &clientIp, &clientPort, &acceptErrno);
+            if(socket < 0) 
+            {
+                if(acceptErrno == EAGAIN || acceptErrno == EWOULDBLOCK) break;//底层已无链接
+                else if(acceptErrno == EINTR) continue;//信号中断
+                else {//读取失败
+                    LogMessage(WARNING, "Accept error, %d : %s", acceptErrno, strerror(acceptErrno));
+                    break;
+                }
+            }
+            AddConnection(socket, bind(&TcpServer::Recver, this, std::placeholders::_1), \
+            bind(&TcpServer::Sender, this, std::placeholders::_1), bind(&TcpServer::Excepter, this, std::placeholders::_1));
+            LogMessage(DEBUG, "Accept client [%s : %d] success, socket: %d", clientIp.c_str(), clientPort, socket);
+        }
+    }
+
+    void Recver(Connection* con) 
+    {
+        while(true)
+        {
+            char buffer[1024];
+            ssize_t num = recv(con->_socketFd, buffer, sizeof(buffer) - 1, 0);
+            if(num < 0) 
+            {
+                if(errno == EAGAIN || errno == EWOULDBLOCK) break;
+                else if(errno == EINTR) continue;
+                else {
+                    LogMessage(WARNING, "recv error %d : %s", errno, strerror(errno));
+                    con->_exceptCb(con);
+                }
+            }
+            else {
+                buffer[num] = '\0';
+                con->_inBuffer += buffer;//放入链接的输入缓冲区中
+            }
+        }
+        LogMessage(DEBUG, "socket: %d , con->_inBuffer: %s", con->_socketFd, (con->_inBuffer).c_str());
+    }
+
+    void Sender(Connection* con)
+    {
+
+    }
+
+    void Excepter(Connection* con)
+    {
+
     }
 
 private:

@@ -57,13 +57,13 @@ public://服务端专用
         LogMessage(NORMAL, "listen success");
     }
 
-    static int Accept(int listenSocketFd, std::string* clientIp, uint16_t* clientPort) {
+    static int Accept(int listenSocketFd, std::string* clientIp, uint16_t* clientPort, int* acceptErrno) {
         struct sockaddr_in client;
         socklen_t length = sizeof client;
         int serviceSocketFd = accept(listenSocketFd, (struct sockaddr*)&client, &length);
         if(serviceSocketFd < 0) {
-            LogMessage(ERROR, "accept fail, %d:%s", errno, strerror(errno));
-            exit(4);
+            *acceptErrno = errno;
+            return -1;
         }
         if(clientIp != nullptr) *clientIp = inet_ntoa(client.sin_addr);
         if(clientPort != nullptr) *clientPort = ntohs(client.sin_port);
