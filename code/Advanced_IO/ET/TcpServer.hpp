@@ -27,15 +27,15 @@ public:
     ~Connection() {}
 
 public:
-    void SetCallBack(func_t reavCb, func_t sendCb, func_t exceptCb) {
-        _reavCb = reavCb;
+    void SetCallBack(func_t recvCb, func_t sendCb, func_t exceptCb) {
+        _recvCb = recvCb;
         _sendCb = sendCb;
         _exceptCb = exceptCb;
     }
 
 public:
     int _socketFd;
-    func_t _reavCb;
+    func_t _recvCb;
     func_t _sendCb;
     func_t _exceptCb;
     string _inBuffer;//无法处理二进制流
@@ -86,9 +86,14 @@ public:
         for(int i = 0; i < number; ++i) {
             int socket = _revs[i].data.fd;
             uint32_t revent = _revs[i].events;
+
+            //将所有异常交给read和write处理
+            if(revent & EPOLLERR) revent |= (EPOLLIN | EPOLLOUT);
+            if(revent & EPOLLHUP) revent |= (EPOLLIN | EPOLLOUT);
+
             if(revent & EPOLLIN) {
-                if((_connections.find(socket) != _connections.end()) && (_connections[socket]->_reavCb != nullptr)) {//存在且回调不为空
-                    _connections[socket]->_reavCb(_connections[socket]);
+                if((_connections.find(socket) != _connections.end()) && (_connections[socket]->_recvCb != nullptr)) {//存在且回调不为空
+                    _connections[socket]->_recvCb(_connections[socket]);
                 }
             }
             if(revent & EPOLLOUT) {
