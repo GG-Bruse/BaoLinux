@@ -4,9 +4,11 @@
 #include <unordered_map>
 #include <functional>
 #include <unistd.h>
+#include <cassert>
 #include "Socket.hpp"
 #include "Log.hpp"
 #include "Epoll.hpp"
+#include "Protocol.hpp"
 using std::string;
 using std::function;
 using std::unordered_map;
@@ -16,6 +18,7 @@ using std::bind;
 class TcpServer;
 class Connection;
 using func_t = function<void(Connection*)>;
+using callback_t = function<void(Connection*, string&)>;
 
 class Connection
 {
@@ -95,13 +98,21 @@ public:
             }
         }
     }
-    void Dispather()//根据就绪事件，进行特定事件的派发
+
+    void Dispather(callback_t cb)//根据就绪事件，进行特定事件的派发
     {
+        _cb = cb;
         while(true)
         {
             LoopOnce();
-
         }
+    }
+
+    void EnableReadWrite(Connection* con ,bool readable, bool writable) 
+    {
+        uint32_t event = (readable ? EPOLLIN : 0) | (writable ? EPOLLOUT : 0);
+        bool ret = _epoll.EpollCtrl(con->_socketFd, event);
+        assert(ret);
     }
 
 public://各种回调方法
@@ -130,6 +141,7 @@ public://各种回调方法
 
     void Recver(Connection* con) 
     {
+        bool error = false;
         while(true)
         {
             char buffer[1024];
@@ -140,8 +152,16 @@ public://各种回调方法
                 else if(errno == EINTR) continue;
                 else {
                     LogMessage(WARNING, "recv error %d : %s", errno, strerror(errno));
+                    error = true;
                     con->_exceptCb(con);
+                    break;
                 }
+            }
+            else if(num == 0) {
+                LogMessage(DEBUG, "client[%d] quit, serve close %d", con->_socketFd, con->_socketFd);
+                error = true;
+                con->_exceptCb(con);
+                break;
             }
             else {
                 buffer[num] = '\0';
@@ -149,16 +169,54 @@ public://各种回调方法
             }
         }
         LogMessage(DEBUG, "socket: %d , con->_inBuffer: %s", con->_socketFd, (con->_inBuffer).c_str());
+
+        if(!error)//无错
+        {
+            vector<string> messages;
+            SpliteMessage(con->_inBuffer, &messages);
+            for(auto& msg : messages) _cb(con, msg);
+        }
     }
 
     void Sender(Connection* con)
     {
-
+        while(true)
+        {
+            ssize_t size = send(con->_socketFd, con->_outBuffer.c_str(), con->_outBuffer.size(), 0);
+            if(size > 0) {
+                con->_outBuffer.erase(0,size);
+                if(con->_outBuffer.empty()) break;
+            }
+            else {
+                if(errno == EAGAIN || errno == EWOULDBLOCK) break;
+                else if(errno == EINTR) continue;
+                else {
+                    LogMessage(WARNING, "send error %d : %s", errno, strerror(errno));
+                    con->_exceptCb(con);
+                    break;
+                }
+            }
+        }
+        if(con->_outBuffer.empty()) EnableReadWrite(con, true, false);
+        else EnableReadWrite(con, true, true);
     }
 
     void Excepter(Connection* con)
     {
-
+        if(!(_connections.find(con->_socketFd) != _connections.end())) return;
+        else //还存在
+        {
+            //从epoll中移除
+            bool ret = _epoll.DelFromEpoll(con->_socketFd);
+            assert(ret);
+            //从映射表中移除
+            _connections.erase(con->_socketFd);
+            //关闭
+            close(con->_socketFd);
+            //释放链接对象
+            delete con;
+        }
+        LogMessage(DEBUG, "Excepter 回收完毕");
     }
 
 private:
@@ -169,4 +227,6 @@ private:
     Epoll _epoll;
     struct epoll_event* _revs;//获取就绪事件的缓冲区
     int _revsNum;//缓冲区大小
+
+    callback_t _cb;//上层业务处理
 };
