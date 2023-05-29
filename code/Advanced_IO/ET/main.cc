@@ -55,6 +55,6 @@ void NetCal(Connection* con, string& request)
 int main()
 {
     unique_ptr<TcpServer> tcpSvrPtr(new TcpServer());
-    tcpSvrPtr->Dispather(NetCal);
+    tcpSvrPtr->Dispatcher(NetCal);
     return 0;
 }

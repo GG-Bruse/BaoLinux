@@ -104,7 +104,7 @@ public:
         }
     }
 
-    void Dispather(callback_t cb)//根据就绪事件，进行特定事件的派发
+    void Dispatcher(callback_t cb)//根据就绪事件，进行特定事件的派发
     {
         _cb = cb;
         while(true)
