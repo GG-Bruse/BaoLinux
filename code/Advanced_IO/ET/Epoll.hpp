@@ -6,7 +6,7 @@ class Epoll
 {
 public:
     Epoll() {}
-    ~Epoll() {}
+    ~Epoll() { if(_epollFd > 0) close(_epollFd); }
 public:
     void EpollCreate() {
         _epollFd = epoll_create(128);
