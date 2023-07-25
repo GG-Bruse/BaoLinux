@@ -1,0 +1,6 @@
+syntax = "proto3";
+package contacts;
+message PeopleInfo {
+    string name = 1;
+    int32 age = 2;
+}
